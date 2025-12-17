@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>自分を育てる育成アプリ</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f4f6fb;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .card {
+      background: #fff;
+      width: 90%;
+      max-width: 420px;
+      padding: 24px;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+    h1 {
+      font-size: 1.4rem;
+      margin-bottom: 16px;
+    }
+    p {
+      color: #555;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      margin-bottom: 16px;
+      font-size: 1rem;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      background: #4f46e5;
+      color: white;
+      cursor: pointer;
+    }
+    button:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+    .hidden { display: none; }
+    .level {
+      font-size: 1.2rem;
+      margin-top: 8px;
+      font-weight: bold;
+    }
+    .time {
+      font-size: 1.1rem;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- 初期設定画面 -->
+  <div id="setupScreen" class="hidden">
+    <h1>初期設定</h1>
+    <p>ニックネームを入力してください（1アカウントのみ）</p>
+    <input id="nicknameInput" placeholder="ニックネーム" />
+    <button onclick="saveNickname()">決定</button>
+  </div>
+
+  <!-- チュートリアル画面 -->
+  <div id="tutorialScreen" class="hidden">
+    <h1>チュートリアル</h1>
+    <p>今回の目標を入力してください</p>
+    <input id="goalInput" placeholder="例：今日は2時間勉強する" />
+    <button onclick="saveGoal()">スタート準備</button>
+  </div>
+
+  <!-- メイン画面 -->
+  <div id="mainScreen" class="hidden">
+    <h1 id="welcome"></h1>
+    <p id="goalText"></p>
+    <div class="time">経過時間: <span id="time">0</span> 秒</div>
+    <div class="level">Lv. <span id="level">1</span></div>
+    <button id="startBtn" onclick="startSession()">スタート</button>
+    <button id="stopBtn" class="hidden" onclick="stopSession()">終了</button>
+  </div>
+
+</div>
+
+<script>
+  let timer = null;
+  let seconds = 0;
+
+  function init() {
+    const data = JSON.parse(localStorage.getItem('selfGrowthData'));
+
+    if (!data) {
+      document.getElementById('setupScreen').classList.remove('hidden');
+    } else {
+      loadMain(data);
+    }
+  }
+
+  function saveNickname() {
+    const nickname = document.getElementById('nicknameInput').value.trim();
+    if (!nickname) return alert('ニックネームを入力してください');
+
+    const data = {
+      nickname,
+      level: 1,
+      totalTime: 0,
+      goal: ''
+    };
+
+    localStorage.setItem('selfGrowthData', JSON.stringify(data));
+    document.getElementById('setupScreen').classList.add('hidden');
+    document.getElementById('tutorialScreen').classList.remove('hidden');
+  }
+
+  function saveGoal() {
+    const goal = document.getElementById('goalInput').value.trim();
+    if (!goal) return alert('目標を入力してください');
+
+    const data = JSON.parse(localStorage.getItem('selfGrowthData'));
+    data.goal = goal;
+    localStorage.setItem('selfGrowthData', JSON.stringify(data));
+
+    document.getElementById('tutorialScreen').classList.add('hidden');
+    loadMain(data);
+  }
+
+  function loadMain(data) {
+    document.getElementById('mainScreen').classList.remove('hidden');
+    document.getElementById('welcome').textContent = `ようこそ ${data.nickname}`;
+    document.getElementById('goalText').textContent = `目標: ${data.goal}`;
+    document.getElementById('level').textContent = data.level;
+  }
+
+  function startSession() {
+    document.getElementById('startBtn').classList.add('hidden');
+    document.getElementById('stopBtn').classList.remove('hidden');
+
+    timer = setInterval(() => {
+      seconds++;
+      document.getElementById('time').textContent = seconds;
+
+      const newLevel = Math.floor(seconds / 60) + 1;
+      document.getElementById('level').textContent = newLevel;
+    }, 1000);
+  }
+
+  function stopSession() {
+    clearInterval(timer);
+
+    const data = JSON.parse(localStorage.getItem('selfGrowthData'));
+    data.totalTime += seconds;
+    data.level = Math.max(data.level, Math.floor(data.totalTime / 60) + 1);
+
+    localStorage.setItem('selfGrowthData', JSON.stringify(data));
+
+    alert('データを保存しました');
+    location.reload();
+  }
+
+  init();
+</script>
+
+</body>
+</html>
