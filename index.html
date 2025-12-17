@@ -1,156 +1,231 @@
 <!DOCTYPE html>
-
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Self Growth Web App - 完全版</title>
+<title>Self Growth App</title>
 <style>
-body{margin:0;font-family:system-ui;background:linear-gradient(180deg,#0f172a,#020617);color:#fff}
-.hidden{display:none}
+body{margin:0;font-family:system-ui;background:#0f172a;color:#fff}
 .card{max-width:480px;margin:auto;padding:16px}
-.panel{background:#020617;padding:14px;border-radius:20px;margin-top:12px;box-shadow:0 0 20px rgba(99,102,241,.3)}
-h1{margin:6px 0}
-button,input,select{width:100%;padding:12px;margin-top:10px;border-radius:14px;border:none;font-size:1rem}
+.hidden{display:none}
+button,input,select{width:100%;padding:12px;margin-top:8px;border-radius:12px;border:none;font-size:15px}
 button{background:#6366f1;color:#fff;font-weight:bold}
 .sub{background:#334155}
-.progress{height:18px;background:#1e293b;border-radius:10px;overflow:hidden}
-.bar{height:100%;background:linear-gradient(90deg,#6366f1,#22d3ee)}
+h1{font-size:1.4rem}
+.box{background:#020617;padding:12px;border-radius:14px;margin-top:10px}
+.bar{height:14px;background:#1e293b;border-radius:10px;overflow:hidden}
+.bar>div{height:100%;background:linear-gradient(90deg,#22d3ee,#6366f1)}
+.bigTimer{position:fixed;inset:0;background:#020617;display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:48px;z-index:9}
 .goal{background:#1e293b;padding:8px;border-radius:10px;margin-top:6px}
-.code{text-align:center;font-size:1.6rem;letter-spacing:4px;font-weight:bold}
-.small{font-size:.85rem;color:#c7d2fe}
-.fullTimer{position:fixed;inset:0;background:#020617;display:flex;align-items:center;justify-content:center;font-size:4rem;z-index:1000}
-canvas{background:#fff;border-radius:12px;margin-top:10px}
 </style>
 </head>
 <body>
+
 <div class="card">
 
 <!-- ENTRY -->
-
-<div id="entry" class="panel">
+<div id="entry">
 <h1>Self Growth</h1>
-<button onclick="newAccount()">新しく始める</button>
-<button class="sub" onclick="showLogin()">引き継ぎコードでログイン</button>
+<button onclick="newUser()">新しく始める</button>
+<button onclick="login()">引き継ぎコード</button>
 </div>
 
 <!-- SETUP -->
-
-<div id="setup" class="panel hidden">
+<div id="setup" class="hidden">
 <h1>初期設定</h1>
 <input id="nickname" placeholder="ニックネーム">
 <button onclick="saveUser()">開始</button>
 </div>
 
 <!-- LOGIN -->
-
-<div id="login" class="panel hidden">
+<div id="login" class="hidden">
 <h1>ログイン</h1>
-<input id="loginCode" placeholder="引き継ぎコード">
-<button onclick="loginWithCode()">ログイン</button>
+<input id="codeInput" placeholder="引き継ぎコード">
+<button onclick="doLogin()">ログイン</button>
 </div>
 
-<!-- GOALS -->
-
-<div id="goalScreen" class="panel hidden">
-<h1>目標管理</h1>
-<input id="goalInput" placeholder="新しい目標">
+<!-- GOAL -->
+<div id="goalScreen" class="hidden">
+<h1>目標</h1>
+<input id="goalText" placeholder="例：英語長文">
 <button onclick="addGoal()">追加</button>
 <div id="goalList"></div>
-<button onclick="goMain()">戻る</button>
+<button onclick="goMain()">メインへ</button>
+</div>
+
+<!-- MAIN -->
+<div id="main" class="hidden">
+<h1 id="welcome"></h1>
+<div class="box">
+Lv.<span id="level">1</span>　
+EXP <span id="exp">0</span> / <span id="nextExp">100</span>
+<div class="bar"><div id="expBar"></div></div>
+</div>
+
+<div class="box">
+週目標残り：<span id="remainWeek">0</span> 分
+</div>
+
+<select id="goalSelect"></select>
+
+<button onclick="startTimer()">START</button>
+<button class="sub" onclick="stopTimer()">STOP</button>
+<button class="sub" onclick="saveManual()">手動記録</button>
+
+<button class="sub" onclick="showProfile()">プロフィール</button>
+<button class="sub" onclick="showLogs()">記録</button>
 </div>
 
 <!-- PROFILE -->
-
-<div id="profile" class="panel hidden"></div>
-
-<!-- MAIN -->
-
-<div id="main" class="panel hidden">
-<h1 id="welcome"></h1>
-<div class="small">引き継ぎコード</div>
-<div class="code" id="myCode"></div>
-
-<div class="panel">
-<div><strong>Lv.<span id="level">1</span></strong></div>
-<div class="progress"><div id="expBar" class="bar"></div></div>
-<div class="small">次のレベルまで <span id="nextExp">0</span> EXP</div>
+<div id="profile" class="hidden">
+<h1>プロフィール</h1>
+<div class="box">Lv <span id="pLevel"></span></div>
+<div class="box">最高連続 <span id="pStreak"></span> 日</div>
+<div class="box">達成数 <span id="pClear"></span></div>
+<button onclick="backMain()">戻る</button>
 </div>
 
-<div class="panel">
-<div class="small">今週の残り目標時間</div>
-<div><strong><span id="remainWeek">0</span> 分</strong></div>
-</div>
-
-<select id="subject"></select>
-
-<button id="startBtn" onclick="startTimer()">START</button> <button id="stopBtn" class="sub hidden" onclick="stopTimer()">STOP</button> <button id="saveBtn" class="hidden" onclick="saveSession()">保存</button>
-
-<button class="sub" onclick="manualRecord()">手動で記録</button> <button class="sub" onclick="openGoals()">目標管理</button> <button class="sub" onclick="openProfile()">プロフィール</button> <button class="sub" onclick="showGraph()">グラフ</button>
-
-</div>
-
-<!-- FULL TIMER -->
-
-<div id="fullTimer" class="fullTimer hidden"><span id="fullTime">0</span></div>
-
-<!-- GRAPH -->
-
-<div id="graph" class="panel hidden">
-<h1>週間グラフ</h1>
-<canvas id="chart" width="320" height="220"></canvas>
+<!-- LOG -->
+<div id="logs" class="hidden">
+<h1>日別ログ</h1>
+<div id="logList"></div>
 <button onclick="backMain()">戻る</button>
 </div>
 
 </div>
+
+<!-- TIMER FULL -->
+<div id="timerView" class="bigTimer hidden">
+<div id="timerText">0:00</div>
+<button onclick="stopTimer()">STOP</button>
+</div>
+
 <script>
-let startAt=null,elapsed=0;
+/* ===== DATA ===== */
+let timer=null,startAt=0;
 
-function generateCode(){return Math.random().toString(36).substring(2,8).toUpperCase()}
-function getAll(){return JSON.parse(localStorage.getItem('accounts'))||{}}
-function saveAll(a){localStorage.setItem('accounts',JSON.stringify(a))}
-function getCurrent(){return localStorage.getItem('currentCode')}
-function needExp(lv){return Math.floor(120*Math.pow(1.25,lv-1))}
+function all(){return JSON.parse(localStorage.getItem("sg_all")||"{}")}
+function saveAll(a){localStorage.setItem("sg_all",JSON.stringify(a))}
+function cur(){return localStorage.getItem("sg_cur")}
 
-function newAccount(){entry.classList.add('hidden');setup.classList.remove('hidden')}
-function showLogin(){entry.classList.add('hidden');login.classList.remove('hidden')}
+function newUser(){entry.classList.add("hidden");setup.classList.remove("hidden")}
+function login(){entry.classList.add("hidden");loginDiv.classList.remove("hidden")}
 
-function saveUser(){const n=nickname.value.trim();if(!n)return;const all=getAll();let c=generateCode();while(all[c])c=generateCode();all[c]={name:n,goals:[],logs:{},exp:0,level:1,weeklyGoal:600,bestStreak:0};saveAll(all);localStorage.setItem('currentCode',c);init()}
+function saveUser(){
+ const name=nickname.value.trim(); if(!name)return;
+ let code=Math.random().toString(36).slice(2,8).toUpperCase()
+ let a=all()
+ a[code]={name,goals:[],logs:{},exp:0,level:1,weekGoal:600,streak:0,best:0,clear:0}
+ saveAll(a); localStorage.setItem("sg_cur",code); init()
+}
 
-function loginWithCode(){const c=loginCode.value.trim().toUpperCase();if(!getAll()[c])return alert('コードが違います');localStorage.setItem('currentCode',c);init()}
+function doLogin(){
+ let c=codeInput.value.trim().toUpperCase()
+ if(!all()[c])return alert("違います")
+ localStorage.setItem("sg_cur",c); init()
+}
 
-function init(){[entry,setup,login].forEach(e=>e.classList.add('hidden'));if(!getCurrent())return entry.classList.remove('hidden');goalScreen.classList.remove('hidden');renderGoals()}
-function getData(){return getAll()[getCurrent()]}
-function saveData(d){const a=getAll();a[getCurrent()]=d;saveAll(a)}
+function data(){return all()[cur()]}
+function save(d){let a=all();a[cur()]=d;saveAll(a)}
 
-function addGoal(){const d=getData();if(!goalInput.value)return;d.goals.push({text:goalInput.value,color:`hsl(${Math.random()*360},80%,60%)`,cleared:0});goalInput.value='';saveData(d);renderGoals()}
+function init(){
+ entry.classList.add("hidden");setup.classList.add("hidden");login.classList.add("hidden")
+ goalScreen.classList.remove("hidden"); renderGoals()
+}
 
-function renderGoals(){const d=getData();goalList.innerHTML='';subject.innerHTML='';d.goals.forEach(g=>{const div=document.createElement('div');div.className='goal';div.textContent=g.text;goalList.appendChild(div);const o=document.createElement('option');o.textContent=g.text;subject.appendChild(o)})}
+function addGoal(){
+ let d=data(); let t=goalText.value.trim(); if(!t)return
+ d.goals.push(t); save(d); renderGoals(); goalText.value=""
+}
 
-function goMain(){goalScreen.classList.add('hidden');main.classList.remove('hidden');const d=getData();welcome.textContent=`ようこそ ${d.name}`;myCode.textContent=getCurrent();updateStatus()}
+function renderGoals(){
+ let d=data(); goalList.innerHTML=""
+ d.goals.forEach(g=>{
+  let div=document.createElement("div")
+  div.className="goal"; div.textContent=g
+  goalList.appendChild(div)
+ })
+}
 
-function startTimer(){if(startAt)return;startAt=Date.now()-elapsed*1000;startBtn.disabled=true;stopBtn.classList.remove('hidden');fullTimer.classList.remove('hidden');tick()}
-function tick(){if(!startAt)return;elapsed=Math.floor((Date.now()-startAt)/1000);fullTime.textContent=elapsed;requestAnimationFrame(tick)}
-function stopTimer(){startAt=null;stopBtn.classList.add('hidden');saveBtn.classList.remove('hidden');fullTimer.classList.add('hidden')}
+function goMain(){
+ goalScreen.classList.add("hidden");main.classList.remove("hidden")
+ let d=data()
+ welcome.textContent=`ようこそ ${d.name}`
+ level.textContent=d.level; exp.textContent=d.exp
+ nextExp.textContent=d.level*d.level*100
+ expBar.style.width=Math.min(100,(d.exp/(d.level*d.level*100))*100)+"%"
+ goalSelect.innerHTML=""
+ d.goals.forEach(g=>{
+  let o=document.createElement("option");o.textContent=g;goalSelect.appendChild(o)
+ })
+ updateWeek()
+}
 
-function saveSession(){const d=getData();const day=new Date().toISOString().slice(0,10);const g=subject.value;if(!d.logs[day])d.logs[day]={};d.logs[day][g]=(d.logs[day][g]||0)+elapsed;const streak=calcStreak(d);const gain=Math.floor((elapsed/60)*Math.log2(streak+2));d.exp+=gain;while(d.exp>=needExp(d.level)){d.exp-=needExp(d.level);d.level++}saveData(d);elapsed=0;startBtn.disabled=false;saveBtn.classList.add('hidden');updateStatus();alert('保存しました')}
+function updateWeek(){
+ let d=data()
+ let used=0
+ Object.values(d.logs).forEach(v=>used+=v)
+ remainWeek.textContent=Math.max(0,d.weekGoal-used)
+}
 
-function manualRecord(){const m=prompt('何分やりましたか？');if(!m)return;const d=getData();const day=new Date().toISOString().slice(0,10);const g=subject.value;if(!d.logs[day])d.logs[day]={};d.logs[day][g]=(d.logs[day][g]||0)+Number(m)*60;saveData(d);updateStatus()}
+/* TIMER */
+function startTimer(){
+ if(timer)return
+ startAt=Date.now()
+ timerView.classList.remove("hidden")
+ timer=setInterval(()=>{
+  let s=Math.floor((Date.now()-startAt)/1000)
+  timerText.textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0")
+ },1000)
+}
 
-function calcStreak(d){const days=Object.keys(d.logs).sort();let s=1;for(let i=days.length-1;i>0;i--){if((new Date(days[i])-new Date(days[i-1]))/86400000==1)s++;else break}d.bestStreak=Math.max(d.bestStreak,s);return s}
+function stopTimer(){
+ if(!timer)return
+ clearInterval(timer); timer=null
+ timerView.classList.add("hidden")
+ let min=Math.floor((Date.now()-startAt)/60000)
+ saveLog(min)
+}
 
-function updateStatus(){const d=getData();level.textContent=d.level;const n=needExp(d.level);expBar.style.width=Math.min(100,d.exp/n*100)+'%';nextExp.textContent=n-d.exp;remainWeek.textContent=calcRemain(d)}
-function calcRemain(d){let used=0;const now=new Date();const m=new Date(now);m.setDate(now.getDate()-now.getDay()+1);Object.entries(d.logs).forEach(([day,subs])=>{if(new Date(day)>=m)Object.values(subs).forEach(t=>used+=Math.floor(t/60))});return Math.max(0,d.weeklyGoal-used)}
+function saveManual(){
+ let min=prompt("何分やりましたか？")
+ if(!min)return
+ saveLog(parseInt(min))
+}
 
-function openGoals(){main.classList.add('hidden');goalScreen.classList.remove('hidden')}
-function openProfile(){const d=getData();profile.innerHTML=`<h1>プロフィール</h1><p>Lv.${d.level}</p><p>最高連続:${d.bestStreak}日</p><p>目標数:${d.goals.length}</p><button onclick=\"backMain()\">戻る</button>`;main.classList.add('hidden');profile.classList.remove('hidden')}
+function saveLog(min){
+ let d=data(); let day=new Date().toISOString().slice(0,10)
+ d.logs[day]=(d.logs[day]||0)+min
+ let bonus=1+d.streak/10
+ d.exp+=Math.floor(min*bonus)
+ if(d.exp>=d.level*d.level*100){d.exp=0;d.level++}
+ save(d); goMain()
+}
 
-function showGraph(){main.classList.add('hidden');graph.classList.remove('hidden');drawGraph()}
-function backMain(){[graph,profile].forEach(e=>e.classList.add('hidden'));main.classList.remove('hidden')}
+/* PROFILE */
+function showProfile(){
+ main.classList.add("hidden");profile.classList.remove("hidden")
+ let d=data()
+ pLevel.textContent=d.level
+ pStreak.textContent=d.best
+ pClear.textContent=d.clear
+}
 
-function drawGraph(){const ctx=chart.getContext('2d');ctx.clearRect(0,0,320,220);const d=getData();const days=Object.keys(d.logs).slice(-7);let i=0;days.forEach(day=>{Object.entries(d.logs[day]).forEach(([g,t])=>{const goal=d.goals.find(x=>x.text===g);ctx.fillStyle=goal?goal.color:'#6366f1';const h=(t/3600)*160;ctx.fillRect(30+i*40,190-h,20,h)});i++})}
+function showLogs(){
+ main.classList.add("hidden");logs.classList.remove("hidden")
+ let d=data(); logList.innerHTML=""
+ Object.entries(d.logs).reverse().forEach(([k,v])=>{
+  let div=document.createElement("div")
+  div.className="box"; div.textContent=`${k} : ${v}分`
+  logList.appendChild(div)
+ })
+}
 
-init(); </script>
+function backMain(){
+ profile.classList.add("hidden");logs.classList.add("hidden")
+ main.classList.remove("hidden")
+}
 
+</script>
 </body>
 </html>
