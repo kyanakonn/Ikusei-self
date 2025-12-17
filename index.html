@@ -4,22 +4,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Self Growth Web App - Complete</title>
+<title>Self Growth Web App - 完全版</title>
 <style>
-body{margin:0;font-family:system-ui;background:linear-gradient(180deg,#1e1b4b,#020617);color:#fff}
-.card{max-width:480px;margin:auto;padding:16px}
+body{margin:0;font-family:system-ui;background:linear-gradient(180deg,#0f172a,#020617);color:#fff}
 .hidden{display:none}
-h1{font-size:1.4rem;margin:8px 0}
-button,select,input{width:100%;padding:12px;margin-top:10px;border-radius:14px;border:none;font-size:1rem}
+.card{max-width:480px;margin:auto;padding:16px}
+.panel{background:#020617;padding:14px;border-radius:20px;margin-top:12px;box-shadow:0 0 20px rgba(99,102,241,.3)}
+h1{margin:6px 0}
+button,input,select{width:100%;padding:12px;margin-top:10px;border-radius:14px;border:none;font-size:1rem}
 button{background:#6366f1;color:#fff;font-weight:bold}
 .sub{background:#334155}
-.panel{background:#0f172a;padding:14px;border-radius:20px;margin-top:12px;box-shadow:0 0 20px rgba(99,102,241,.3)}
-.code{font-size:1.6rem;text-align:center;letter-spacing:4px;font-weight:bold}
-.progress{background:#1e293b;border-radius:12px;overflow:hidden;height:18px;margin-top:6px}
+.progress{height:18px;background:#1e293b;border-radius:10px;overflow:hidden}
 .bar{height:100%;background:linear-gradient(90deg,#6366f1,#22d3ee)}
-.small{font-size:.85rem;color:#c7d2fe}
 .goal{background:#1e293b;padding:8px;border-radius:10px;margin-top:6px}
-canvas{background:#fff;border-radius:12px;margin-top:12px}
+.code{text-align:center;font-size:1.6rem;letter-spacing:4px;font-weight:bold}
+.small{font-size:.85rem;color:#c7d2fe}
+.fullTimer{position:fixed;inset:0;background:#020617;display:flex;align-items:center;justify-content:center;font-size:4rem;z-index:1000}
+canvas{background:#fff;border-radius:12px;margin-top:10px}
 </style>
 </head>
 <body>
@@ -56,8 +57,12 @@ canvas{background:#fff;border-radius:12px;margin-top:12px}
 <input id="goalInput" placeholder="新しい目標">
 <button onclick="addGoal()">追加</button>
 <div id="goalList"></div>
-<button onclick="goMain()">メインへ</button>
+<button onclick="goMain()">戻る</button>
 </div>
+
+<!-- PROFILE -->
+
+<div id="profile" class="panel hidden"></div>
 
 <!-- MAIN -->
 
@@ -67,92 +72,85 @@ canvas{background:#fff;border-radius:12px;margin-top:12px}
 <div class="code" id="myCode"></div>
 
 <div class="panel">
-<div class="small">レベル</div>
 <div><strong>Lv.<span id="level">1</span></strong></div>
-<div class="progress"><div id="expBar" class="bar" style="width:0%"></div></div>
+<div class="progress"><div id="expBar" class="bar"></div></div>
 <div class="small">次のレベルまで <span id="nextExp">0</span> EXP</div>
 </div>
 
 <div class="panel">
-<div class="small">今週の残り時間</div>
+<div class="small">今週の残り目標時間</div>
 <div><strong><span id="remainWeek">0</span> 分</strong></div>
 </div>
 
 <select id="subject"></select>
 
-<div class="small">計測時間: <span id="time">0</span> 秒</div>
-<button onclick="start()">START</button>
-<button class="sub" onclick="stop()">STOP</button>
-<button class="sub" onclick="showLogs()">記録</button>
-<button class="sub" onclick="showGraph()">グラフ</button>
+<button id="startBtn" onclick="startTimer()">START</button> <button id="stopBtn" class="sub hidden" onclick="stopTimer()">STOP</button> <button id="saveBtn" class="hidden" onclick="saveSession()">保存</button>
+
+<button class="sub" onclick="manualRecord()">手動で記録</button> <button class="sub" onclick="openGoals()">目標管理</button> <button class="sub" onclick="openProfile()">プロフィール</button> <button class="sub" onclick="showGraph()">グラフ</button>
+
 </div>
 
-<!-- LOGS -->
+<!-- FULL TIMER -->
 
-<div id="logs" class="panel hidden">
-<h1>記録</h1>
-<div id="streak"></div>
-<div id="logList"></div>
-<button onclick="backMain()">戻る</button>
-</div>
+<div id="fullTimer" class="fullTimer hidden"><span id="fullTime">0</span></div>
 
 <!-- GRAPH -->
 
 <div id="graph" class="panel hidden">
-<h1>グラフ</h1>
+<h1>週間グラフ</h1>
 <canvas id="chart" width="320" height="220"></canvas>
-<button onclick="backMainFromGraph()">戻る</button>
-</div>
+<button onclick="backMain()">戻る</button>
 </div>
 
+</div>
 <script>
-let timer=null,sec=0;
+let startAt=null,elapsed=0;
 
 function generateCode(){return Math.random().toString(36).substring(2,8).toUpperCase()}
 function getAll(){return JSON.parse(localStorage.getItem('accounts'))||{}}
 function saveAll(a){localStorage.setItem('accounts',JSON.stringify(a))}
 function getCurrent(){return localStorage.getItem('currentCode')}
+function needExp(lv){return Math.floor(120*Math.pow(1.25,lv-1))}
 
 function newAccount(){entry.classList.add('hidden');setup.classList.remove('hidden')}
 function showLogin(){entry.classList.add('hidden');login.classList.remove('hidden')}
 
-function saveUser(){const name=nickname.value.trim();if(!name)return;const all=getAll();let code=generateCode();while(all[code])code=generateCode();all[code]={name,goals:[],logs:{},exp:0,level:1,weeklyGoal:600};saveAll(all);localStorage.setItem('currentCode',code);init()}
+function saveUser(){const n=nickname.value.trim();if(!n)return;const all=getAll();let c=generateCode();while(all[c])c=generateCode();all[c]={name:n,goals:[],logs:{},exp:0,level:1,weeklyGoal:600,bestStreak:0};saveAll(all);localStorage.setItem('currentCode',c);init()}
 
-function loginWithCode(){const code=loginCode.value.trim().toUpperCase();const all=getAll();if(!all[code])return alert('コードが違います');localStorage.setItem('currentCode',code);init()}
+function loginWithCode(){const c=loginCode.value.trim().toUpperCase();if(!getAll()[c])return alert('コードが違います');localStorage.setItem('currentCode',c);init()}
 
-function init(){entry.classList.add('hidden');setup.classList.add('hidden');login.classList.add('hidden');const code=getCurrent();if(!code)return entry.classList.remove('hidden');goalScreen.classList.remove('hidden');renderGoals()}
-
+function init(){[entry,setup,login].forEach(e=>e.classList.add('hidden'));if(!getCurrent())return entry.classList.remove('hidden');goalScreen.classList.remove('hidden');renderGoals()}
 function getData(){return getAll()[getCurrent()]}
-function saveData(d){const all=getAll();all[getCurrent()]=d;saveAll(all)}
+function saveData(d){const a=getAll();a[getCurrent()]=d;saveAll(a)}
 
-function addGoal(){const d=getData();const g=goalInput.value.trim();if(!g)return;d.goals.push({text:g});saveData(d);goalInput.value='';renderGoals()}
+function addGoal(){const d=getData();if(!goalInput.value)return;d.goals.push({text:goalInput.value,color:`hsl(${Math.random()*360},80%,60%)`,cleared:0});goalInput.value='';saveData(d);renderGoals()}
 
-function renderGoals(){const d=getData();goalList.innerHTML='';subject.innerHTML='';d.goals.forEach(g=>{const div=document.createElement('div');div.className='goal';div.textContent=g.text;goalList.appendChild(div);const opt=document.createElement('option');opt.textContent=g.text;subject.appendChild(opt)})}
+function renderGoals(){const d=getData();goalList.innerHTML='';subject.innerHTML='';d.goals.forEach(g=>{const div=document.createElement('div');div.className='goal';div.textContent=g.text;goalList.appendChild(div);const o=document.createElement('option');o.textContent=g.text;subject.appendChild(o)})}
 
 function goMain(){goalScreen.classList.add('hidden');main.classList.remove('hidden');const d=getData();welcome.textContent=`ようこそ ${d.name}`;myCode.textContent=getCurrent();updateStatus()}
 
-function needExp(lv){return Math.floor(100*Math.pow(1.2,lv-1))}
+function startTimer(){if(startAt)return;startAt=Date.now()-elapsed*1000;startBtn.disabled=true;stopBtn.classList.remove('hidden');fullTimer.classList.remove('hidden');tick()}
+function tick(){if(!startAt)return;elapsed=Math.floor((Date.now()-startAt)/1000);fullTime.textContent=elapsed;requestAnimationFrame(tick)}
+function stopTimer(){startAt=null;stopBtn.classList.add('hidden');saveBtn.classList.remove('hidden');fullTimer.classList.add('hidden')}
 
-function updateStatus(){const d=getData();level.textContent=d.level;const next=needExp(d.level);const cur=d.exp;expBar.style.width=Math.min(100,(cur/next)*100)+'%';nextExp.textContent=Math.max(0,next-cur);remainWeek.textContent=calcRemainWeek(d)}
+function saveSession(){const d=getData();const day=new Date().toISOString().slice(0,10);const g=subject.value;if(!d.logs[day])d.logs[day]={};d.logs[day][g]=(d.logs[day][g]||0)+elapsed;const streak=calcStreak(d);const gain=Math.floor((elapsed/60)*Math.log2(streak+2));d.exp+=gain;while(d.exp>=needExp(d.level)){d.exp-=needExp(d.level);d.level++}saveData(d);elapsed=0;startBtn.disabled=false;saveBtn.classList.add('hidden');updateStatus();alert('保存しました')}
 
-function calcRemainWeek(d){let used=0;const now=new Date();const monday=new Date(now);monday.setDate(now.getDate()-now.getDay()+1);Object.entries(d.logs).forEach(([day,subs])=>{const dt=new Date(day);if(dt>=monday)Object.values(subs).forEach(t=>used+=Math.floor(t/60))});return Math.max(0,d.weeklyGoal-used)}
+function manualRecord(){const m=prompt('何分やりましたか？');if(!m)return;const d=getData();const day=new Date().toISOString().slice(0,10);const g=subject.value;if(!d.logs[day])d.logs[day]={};d.logs[day][g]=(d.logs[day][g]||0)+Number(m)*60;saveData(d);updateStatus()}
 
-function start(){sec=0;time.textContent=0;timer=setInterval(()=>{sec++;time.textContent=sec},1000)}
+function calcStreak(d){const days=Object.keys(d.logs).sort();let s=1;for(let i=days.length-1;i>0;i--){if((new Date(days[i])-new Date(days[i-1]))/86400000==1)s++;else break}d.bestStreak=Math.max(d.bestStreak,s);return s}
 
-function stop(){clearInterval(timer);const d=getData();const day=new Date().toISOString().slice(0,10);const sub=subject.value;if(!d.logs[day])d.logs[day]={};d.logs[day][sub]=(d.logs[day][sub]||0)+sec;const gain=Math.floor((sec/60)*Math.log2(2));d.exp+=gain;while(d.exp>=needExp(d.level)){d.exp-=needExp(d.level);d.level++}saveData(d);updateStatus();alert('保存しました')}
+function updateStatus(){const d=getData();level.textContent=d.level;const n=needExp(d.level);expBar.style.width=Math.min(100,d.exp/n*100)+'%';nextExp.textContent=n-d.exp;remainWeek.textContent=calcRemain(d)}
+function calcRemain(d){let used=0;const now=new Date();const m=new Date(now);m.setDate(now.getDate()-now.getDay()+1);Object.entries(d.logs).forEach(([day,subs])=>{if(new Date(day)>=m)Object.values(subs).forEach(t=>used+=Math.floor(t/60))});return Math.max(0,d.weeklyGoal-used)}
 
-function showLogs(){main.classList.add('hidden');logs.classList.remove('hidden');renderLogs()}
-function backMain(){logs.classList.add('hidden');main.classList.remove('hidden')}
-
-function renderLogs(){const d=getData();logList.innerHTML='';let streakCount=0;let prev=null;Object.keys(d.logs).sort().reverse().forEach(day=>{const div=document.createElement('div');div.className='goal';let html=`<strong>${day}</strong><br>`;Object.entries(d.logs[day]).forEach(([s,t])=>html+=`${s}: ${Math.floor(t/60)}分<br>`);div.innerHTML=html;logList.appendChild(div);if(prev){const diff=(new Date(prev)-new Date(day))/(1000*60*60*24);if(diff===1)streakCount++}prev=day});streak.textContent=`🔥 連続 ${streakCount+1} 日`}
+function openGoals(){main.classList.add('hidden');goalScreen.classList.remove('hidden')}
+function openProfile(){const d=getData();profile.innerHTML=`<h1>プロフィール</h1><p>Lv.${d.level}</p><p>最高連続:${d.bestStreak}日</p><p>目標数:${d.goals.length}</p><button onclick=\"backMain()\">戻る</button>`;main.classList.add('hidden');profile.classList.remove('hidden')}
 
 function showGraph(){main.classList.add('hidden');graph.classList.remove('hidden');drawGraph()}
-function backMainFromGraph(){graph.classList.add('hidden');main.classList.remove('hidden')}
+function backMain(){[graph,profile].forEach(e=>e.classList.add('hidden'));main.classList.remove('hidden')}
 
-function drawGraph(){const ctx=chart.getContext('2d');ctx.clearRect(0,0,320,220);const d=getData();const days=Object.keys(d.logs).slice(-7);const vals=days.map(day=>{let t=0;Object.values(d.logs[day]).forEach(v=>t+=v);return Math.floor(t/60)});const max=Math.max(...vals,1);vals.forEach((v,i)=>{const h=(v/max)*160;ctx.fillStyle='#6366f1';ctx.fillRect(30+i*40,190-h,24,h);ctx.fillStyle='#000';ctx.fillText(v+'m',30+i*40,180-h)})}
+function drawGraph(){const ctx=chart.getContext('2d');ctx.clearRect(0,0,320,220);const d=getData();const days=Object.keys(d.logs).slice(-7);let i=0;days.forEach(day=>{Object.entries(d.logs[day]).forEach(([g,t])=>{const goal=d.goals.find(x=>x.text===g);ctx.fillStyle=goal?goal.color:'#6366f1';const h=(t/3600)*160;ctx.fillRect(30+i*40,190-h,20,h)});i++})}
 
-init();
-</script>
+init(); </script>
 
 </body>
 </html>
