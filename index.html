@@ -1,177 +1,134 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>自分を育てる育成アプリ</title>
-  <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f4f6fb;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    .card {
-      background: #fff;
-      width: 90%;
-      max-width: 420px;
-      padding: 24px;
-      border-radius: 16px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-    }
-    h1 {
-      font-size: 1.4rem;
-      margin-bottom: 16px;
-    }
-    p {
-      color: #555;
-    }
-    input {
-      width: 100%;
-      padding: 10px;
-      margin-top: 8px;
-      margin-bottom: 16px;
-      font-size: 1rem;
-    }
-    button {
-      width: 100%;
-      padding: 12px;
-      font-size: 1rem;
-      border: none;
-      border-radius: 8px;
-      background: #4f46e5;
-      color: white;
-      cursor: pointer;
-    }
-    button:disabled {
-      background: #aaa;
-      cursor: not-allowed;
-    }
-    .hidden { display: none; }
-    .level {
-      font-size: 1.2rem;
-      margin-top: 8px;
-      font-weight: bold;
-    }
-    .time {
-      font-size: 1.1rem;
-      margin-top: 4px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自分を育てる育成アプリ</title>
+<style>
+body{margin:0;font-family:system-ui;background:#f4f6fb}
+.card{max-width:480px;margin:auto;padding:16px}
+h1{font-size:1.4rem}
+button,select,input{width:100%;padding:10px;margin-top:8px}
+.hidden{display:none}
+.log-day{background:#fff;padding:10px;margin-top:10px;border-radius:8px}
+.goal{background:#eef;padding:8px;margin-top:6px;border-radius:6px}
+canvas{background:#fff;border-radius:8px;margin-top:10px}
+.code{font-size:1.4rem;font-weight:bold;text-align:center;letter-spacing:4px}
+</style>
 </head>
 <body>
-
 <div class="card">
 
-  <!-- 初期設定画面 -->
-  <div id="setupScreen" class="hidden">
-    <h1>初期設定</h1>
-    <p>ニックネームを入力してください（1アカウントのみ）</p>
-    <input id="nicknameInput" placeholder="ニックネーム" />
-    <button onclick="saveNickname()">決定</button>
-  </div>
+<!-- 初期 / ログイン選択 -->
+<div id="entry">
+<h1>ようこそ</h1>
+<button onclick="newAccount()">新しく始める</button>
+<button onclick="showLogin()">引き継ぎコードでログイン</button>
+</div>
 
-  <!-- チュートリアル画面 -->
-  <div id="tutorialScreen" class="hidden">
-    <h1>チュートリアル</h1>
-    <p>今回の目標を入力してください</p>
-    <input id="goalInput" placeholder="例：今日は2時間勉強する" />
-    <button onclick="saveGoal()">スタート準備</button>
-  </div>
+<!-- 新規作成 -->
+<div id="setup" class="hidden">
+<h1>初期設定</h1>
+<input id="nickname" placeholder="ニックネーム">
+<button onclick="saveUser()">開始</button>
+</div>
 
-  <!-- メイン画面 -->
-  <div id="mainScreen" class="hidden">
-    <h1 id="welcome"></h1>
-    <p id="goalText"></p>
-    <div class="time">経過時間: <span id="time">0</span> 秒</div>
-    <div class="level">Lv. <span id="level">1</span></div>
-    <button id="startBtn" onclick="startSession()">スタート</button>
-    <button id="stopBtn" class="hidden" onclick="stopSession()">終了</button>
-  </div>
+<!-- ログイン -->
+<div id="login" class="hidden">
+<h1>ログイン</h1>
+<input id="loginCode" placeholder="引き継ぎコード">
+<button onclick="loginWithCode()">ログイン</button>
+</div>
 
+<!-- 目標管理 -->
+<div id="goalScreen" class="hidden">
+<h1>目標管理</h1>
+<input id="goalInput" placeholder="新しい目標">
+<button onclick="addGoal()">目標追加</button>
+<div id="goalList"></div>
+<button onclick="goMain()">勉強へ</button>
+</div>
+
+<!-- メイン -->
+<div id="main" class="hidden">
+<h1 id="welcome"></h1>
+<p>引き継ぎコード</p>
+<div class="code" id="myCode"></div>
+<select id="subject">
+<option>英語</option><option>数学</option><option>国語</option><option>理科</option><option>社会</option>
+</select>
+<div>時間: <span id="time">0</span> 秒</div>
+<button onclick="start()">START</button>
+<button onclick="stop()">STOP</button>
+<button onclick="showLogs()">記録</button>
+<button onclick="showGraph()">グラフ</button>
+</div>
+
+<!-- ログ -->
+<div id="logs" class="hidden">
+<h1>日別ログ</h1>
+<div id="streak"></div>
+<div id="logList"></div>
+<button onclick="backMain()">戻る</button>
+</div>
+
+<!-- グラフ -->
+<div id="graph" class="hidden">
+<h1>グラフ</h1>
+<select id="graphMode" onchange="drawGraph()">
+<option value="day">日別（7日）</option>
+<option value="month">月別</option>
+</select>
+<canvas id="chart" width="340" height="220"></canvas>
+<button onclick="backMainFromGraph()">戻る</button>
+</div>
 </div>
 
 <script>
-  let timer = null;
-  let seconds = 0;
+let timer,sec=0;
 
-  function init() {
-    const data = JSON.parse(localStorage.getItem('selfGrowthData'));
+function generateCode(){return Math.random().toString(36).substring(2,8).toUpperCase()}
 
-    if (!data) {
-      document.getElementById('setupScreen').classList.remove('hidden');
-    } else {
-      loadMain(data);
-    }
-  }
+function getAll(){return JSON.parse(localStorage.getItem('accounts'))||{}}
+function saveAll(a){localStorage.setItem('accounts',JSON.stringify(a))}
+function getCurrent(){return localStorage.getItem('currentCode')}
 
-  function saveNickname() {
-    const nickname = document.getElementById('nicknameInput').value.trim();
-    if (!nickname) return alert('ニックネームを入力してください');
+function newAccount(){entry.classList.add('hidden');setup.classList.remove('hidden')}
+function showLogin(){entry.classList.add('hidden');login.classList.remove('hidden')}
 
-    const data = {
-      nickname,
-      level: 1,
-      totalTime: 0,
-      goal: ''
-    };
+function saveUser(){const name=nickname.value.trim();if(!name)return;const all=getAll();let code=generateCode();while(all[code])code=generateCode();all[code]={name,goals:[],logs:{}};saveAll(all);localStorage.setItem('currentCode',code);init()}
 
-    localStorage.setItem('selfGrowthData', JSON.stringify(data));
-    document.getElementById('setupScreen').classList.add('hidden');
-    document.getElementById('tutorialScreen').classList.remove('hidden');
-  }
+function loginWithCode(){const code=loginCode.value.trim().toUpperCase();const all=getAll();if(!all[code])return alert('コードが違います');localStorage.setItem('currentCode',code);init()}
 
-  function saveGoal() {
-    const goal = document.getElementById('goalInput').value.trim();
-    if (!goal) return alert('目標を入力してください');
+function init(){entry.classList.add('hidden');setup.classList.add('hidden');login.classList.add('hidden');const code=getCurrent();if(!code)return entry.classList.remove('hidden');goalScreen.classList.remove('hidden');renderGoals()}
 
-    const data = JSON.parse(localStorage.getItem('selfGrowthData'));
-    data.goal = goal;
-    localStorage.setItem('selfGrowthData', JSON.stringify(data));
+function getData(){return getAll()[getCurrent()]}
+function saveData(d){const all=getAll();all[getCurrent()]=d;saveAll(all)}
 
-    document.getElementById('tutorialScreen').classList.add('hidden');
-    loadMain(data);
-  }
+function addGoal(){const d=getData();const g=goalInput.value.trim();if(!g)return;d.goals.push({text:g});saveData(d);goalInput.value='';renderGoals()}
 
-  function loadMain(data) {
-    document.getElementById('mainScreen').classList.remove('hidden');
-    document.getElementById('welcome').textContent = `ようこそ ${data.nickname}`;
-    document.getElementById('goalText').textContent = `目標: ${data.goal}`;
-    document.getElementById('level').textContent = data.level;
-  }
+function renderGoals(){const d=getData();goalList.innerHTML='';d.goals.forEach(g=>{const div=document.createElement('div');div.className='goal';div.textContent=g.text;goalList.appendChild(div)})}
 
-  function startSession() {
-    document.getElementById('startBtn').classList.add('hidden');
-    document.getElementById('stopBtn').classList.remove('hidden');
+function goMain(){goalScreen.classList.add('hidden');main.classList.remove('hidden');const d=getData();welcome.textContent=`ようこそ ${d.name}`;myCode.textContent=getCurrent()}
 
-    timer = setInterval(() => {
-      seconds++;
-      document.getElementById('time').textContent = seconds;
+function start(){sec=0;time.textContent=0;timer=setInterval(()=>{sec++;time.textContent=sec},1000)}
 
-      const newLevel = Math.floor(seconds / 60) + 1;
-      document.getElementById('level').textContent = newLevel;
-    }, 1000);
-  }
+function stop(){clearInterval(timer);const d=getData();const day=new Date().toISOString().slice(0,10);const sub=subject.value;if(!d.logs[day])d.logs[day]={};d.logs[day][sub]=(d.logs[day][sub]||0)+sec;saveData(d);alert('保存しました')}
 
-  function stopSession() {
-    clearInterval(timer);
+function showLogs(){main.classList.add('hidden');logs.classList.remove('hidden');renderLogs()}
 
-    const data = JSON.parse(localStorage.getItem('selfGrowthData'));
-    data.totalTime += seconds;
-    data.level = Math.max(data.level, Math.floor(data.totalTime / 60) + 1);
+function renderLogs(){const d=getData();logList.innerHTML='';const days=Object.keys(d.logs).sort().reverse();let streakCount=0;let prev=new Date();days.forEach(day=>{const div=document.createElement('div');div.className='log-day';let html=`<strong>${day}</strong><br>`;Object.entries(d.logs[day]).forEach(([s,t])=>{html+=`${s}: ${Math.floor(t/60)}分<br>`});div.innerHTML=html;logList.appendChild(div);const diff=(prev-new Date(day))/(1000*60*60*24);if(diff<=1)streakCount++;prev=new Date(day)});streak.textContent=`🔥 連続 ${streakCount} 日`}
 
-    localStorage.setItem('selfGrowthData', JSON.stringify(data));
+function showGraph(){main.classList.add('hidden');graph.classList.remove('hidden');drawGraph()}
+function backMainFromGraph(){graph.classList.add('hidden');main.classList.remove('hidden')}
+function backMain(){logs.classList.add('hidden');main.classList.remove('hidden')}
 
-    alert('データを保存しました');
-    location.reload();
-  }
+function drawGraph(){const ctx=chart.getContext('2d');ctx.clearRect(0,0,340,220);const d=getData();const mode=graphMode.value;const now=new Date();let labels=[],values=[];
+if(mode==='day'){for(let i=6;i>=0;i--){const date=new Date(now);date.setDate(now.getDate()-i);const key=date.toISOString().slice(0,10);labels.push(key.slice(5));let total=0;if(d.logs[key])Object.values(d.logs[key]).forEach(t=>total+=t);values.push(Math.floor(total/60))}}
+else{const months={};Object.entries(d.logs).forEach(([day,subs])=>{const m=day.slice(0,7);months[m]=months[m]||0;Object.values(subs).forEach(t=>months[m]+=t)});labels=Object.keys(months);values=labels.map(l=>Math.floor(months[l]/60))}
+const max=Math.max(...values,1);values.forEach((v,i)=>{const h=(v/max)*160;ctx.fillRect(30+i*40,190-h,20,h);ctx.fillText(labels[i],30+i*40,205);ctx.fillText(v+'m',30+i*40,180-h)})}
 
-  init();
+init();
 </script>
-
 </body>
 </html>
