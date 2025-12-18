@@ -2,230 +2,265 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Self Growth App</title>
 <style>
-body{margin:0;font-family:system-ui;background:#0f172a;color:#fff}
+body{margin:0;font-family:system-ui;background:#020617;color:#fff}
 .card{max-width:480px;margin:auto;padding:16px}
+h1{text-align:center}
+button,input{width:100%;padding:14px;margin-top:10px;border-radius:16px;border:none}
+button{background:#38bdf8;color:#000;font-weight:bold}
+button.sub{background:#475569;color:#fff}
+button:disabled{opacity:.4}
+.panel{background:#020617;border-radius:20px;padding:14px;margin-top:14px}
 .hidden{display:none}
-button,input,select{width:100%;padding:12px;margin-top:8px;border-radius:12px;border:none;font-size:15px}
-button{background:#6366f1;color:#fff;font-weight:bold}
-.sub{background:#334155}
-h1{font-size:1.4rem}
-.box{background:#020617;padding:12px;border-radius:14px;margin-top:10px}
-.bar{height:14px;background:#1e293b;border-radius:10px;overflow:hidden}
-.bar>div{height:100%;background:linear-gradient(90deg,#22d3ee,#6366f1)}
-.bigTimer{position:fixed;inset:0;background:#020617;display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:48px;z-index:9}
-.goal{background:#1e293b;padding:8px;border-radius:10px;margin-top:6px}
+
+/* ===== TIMER ===== */
+.fullscreen{
+ position:fixed;inset:0;
+ background:#020617;
+ display:flex;flex-direction:column;
+ justify-content:center;align-items:center;
+ z-index:9999
+}
+.timer{
+ font-size:4rem;font-weight:bold;
+ margin-bottom:20px
+}
+.small{opacity:.8}
+
+/* ===== BAR ===== */
+.bar{height:16px;background:#334155;border-radius:8px;overflow:hidden}
+.bar>div{height:100%;background:#22c55e}
+
+/* ===== GRAPH ===== */
+canvas{background:#020617;border-radius:16px;margin-top:10px}
+.legend{font-size:.85rem;margin-top:8px}
+.legend span{margin-right:10px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
 </style>
 </head>
 <body>
 
-<div class="card">
-
-<!-- ENTRY -->
-<div id="entry">
+<div class="card" id="main">
 <h1>Self Growth</h1>
-<button onclick="newUser()">新しく始める</button>
-<button onclick="login()">引き継ぎコード</button>
-</div>
 
-<!-- SETUP -->
-<div id="setup" class="hidden">
-<h1>初期設定</h1>
-<input id="nickname" placeholder="ニックネーム">
-<button onclick="saveUser()">開始</button>
-</div>
-
-<!-- LOGIN -->
-<div id="login" class="hidden">
-<h1>ログイン</h1>
-<input id="codeInput" placeholder="引き継ぎコード">
-<button onclick="doLogin()">ログイン</button>
-</div>
-
-<!-- GOAL -->
-<div id="goalScreen" class="hidden">
-<h1>目標</h1>
-<input id="goalText" placeholder="例：英語長文">
-<button onclick="addGoal()">追加</button>
-<div id="goalList"></div>
-<button onclick="goMain()">メインへ</button>
-</div>
-
-<!-- MAIN -->
-<div id="main" class="hidden">
-<h1 id="welcome"></h1>
-<div class="box">
-Lv.<span id="level">1</span>　
-EXP <span id="exp">0</span> / <span id="nextExp">100</span>
+<div class="panel">
+Lv <span id="lv">1</span>
 <div class="bar"><div id="expBar"></div></div>
+<div class="small">次まで <span id="needExp"></span> EXP</div>
 </div>
 
-<div class="box">
-週目標残り：<span id="remainWeek">0</span> 分
+<div class="panel">
+<h3>今週の目標</h3>
+<input id="wh" type="number" placeholder="時間">
+<input id="wm" type="number" placeholder="分">
+<button onclick="setWeek()">設定</button>
+<div class="bar"><div id="weekBar"></div></div>
+<div class="small" id="weekText"></div>
 </div>
 
-<select id="goalSelect"></select>
-
-<button onclick="startTimer()">START</button>
-<button class="sub" onclick="stopTimer()">STOP</button>
-<button class="sub" onclick="saveManual()">手動記録</button>
-
-<button class="sub" onclick="showProfile()">プロフィール</button>
-<button class="sub" onclick="showLogs()">記録</button>
+<div class="panel">
+<button onclick="startTimer()">▶ START</button>
 </div>
 
-<!-- PROFILE -->
-<div id="profile" class="hidden">
-<h1>プロフィール</h1>
-<div class="box">Lv <span id="pLevel"></span></div>
-<div class="box">最高連続 <span id="pStreak"></span> 日</div>
-<div class="box">達成数 <span id="pClear"></span></div>
-<button onclick="backMain()">戻る</button>
+<button class="sub" onclick="openGraph()">📊 グラフ</button>
+<button class="sub" onclick="openProfile()">👤 プロフィール</button>
 </div>
 
-<!-- LOG -->
-<div id="logs" class="hidden">
-<h1>日別ログ</h1>
-<div id="logList"></div>
-<button onclick="backMain()">戻る</button>
-</div>
-
-</div>
-
-<!-- TIMER FULL -->
-<div id="timerView" class="bigTimer hidden">
-<div id="timerText">0:00</div>
+<!-- ===== FULLSCREEN TIMER ===== -->
+<div id="fs" class="fullscreen hidden">
+<div class="timer" id="fsTime">0:00</div>
 <button onclick="stopTimer()">STOP</button>
+<button class="sub hidden" id="saveBtn" onclick="saveTimer()">SAVE</button>
+</div>
+
+<!-- ===== GRAPH ===== -->
+<div id="graph" class="hidden card">
+<h1>7日グラフ</h1>
+<canvas id="chart" width="360" height="240"></canvas>
+<div id="legend" class="legend"></div>
+<button onclick="closeGraph()">戻る</button>
+</div>
+
+<!-- ===== PROFILE ===== -->
+<div id="profile" class="hidden card">
+<h1>プロフィール</h1>
+<div class="panel">
+<div>Lv: <span id="pLv"></span></div>
+<div>累計時間: <span id="pTime"></span></div>
+<div>最高連続日数: <span id="pStreak"></span></div>
+</div>
+<button onclick="closeProfile()">戻る</button>
 </div>
 
 <script>
 /* ===== DATA ===== */
-let timer=null,startAt=0;
+let data=JSON.parse(localStorage.getItem('sg'))||{
+ lv:1,exp:0,logs:{},streak:0,maxStreak:0,
+ weekGoal:0,weekStart:''
+}
+const save=()=>localStorage.setItem('sg',JSON.stringify(data))
+const today=()=>new Date().toISOString().slice(0,10)
 
-function all(){return JSON.parse(localStorage.getItem("sg_all")||"{}")}
-function saveAll(a){localStorage.setItem("sg_all",JSON.stringify(a))}
-function cur(){return localStorage.getItem("sg_cur")}
-
-function newUser(){entry.classList.add("hidden");setup.classList.remove("hidden")}
-function login(){entry.classList.add("hidden");loginDiv.classList.remove("hidden")}
-
-function saveUser(){
- const name=nickname.value.trim(); if(!name)return;
- let code=Math.random().toString(36).slice(2,8).toUpperCase()
- let a=all()
- a[code]={name,goals:[],logs:{},exp:0,level:1,weekGoal:600,streak:0,best:0,clear:0}
- saveAll(a); localStorage.setItem("sg_cur",code); init()
+/* ===== EXP ===== */
+function gainExp(min){
+ let gain=Math.floor(min*(1+data.streak/10))
+ data.exp+=gain
+ while(data.exp>=100*data.lv*data.lv){
+  data.exp-=100*data.lv*data.lv
+  data.lv++
+ }
 }
 
-function doLogin(){
- let c=codeInput.value.trim().toUpperCase()
- if(!all()[c])return alert("違います")
- localStorage.setItem("sg_cur",c); init()
+/* ===== WEEK ===== */
+function weekStart(){
+ const d=new Date();const day=d.getDay()||7
+ d.setDate(d.getDate()-day+1)
+ return d.toISOString().slice(0,10)
 }
-
-function data(){return all()[cur()]}
-function save(d){let a=all();a[cur()]=d;saveAll(a)}
-
-function init(){
- entry.classList.add("hidden");setup.classList.add("hidden");login.classList.add("hidden")
- goalScreen.classList.remove("hidden"); renderGoals()
+if(data.weekStart!==weekStart()){
+ data.weekStart=weekStart()
 }
+save()
 
-function addGoal(){
- let d=data(); let t=goalText.value.trim(); if(!t)return
- d.goals.push(t); save(d); renderGoals(); goalText.value=""
-}
+/* ===== UI ===== */
+function render(){
+ lv.textContent=data.lv
+ const need=100*data.lv*data.lv
+ expBar.style.width=Math.min(data.exp/need*100,100)+'%'
+ needExp.textContent=need-data.exp
 
-function renderGoals(){
- let d=data(); goalList.innerHTML=""
- d.goals.forEach(g=>{
-  let div=document.createElement("div")
-  div.className="goal"; div.textContent=g
-  goalList.appendChild(div)
- })
-}
-
-function goMain(){
- goalScreen.classList.add("hidden");main.classList.remove("hidden")
- let d=data()
- welcome.textContent=`ようこそ ${d.name}`
- level.textContent=d.level; exp.textContent=d.exp
- nextExp.textContent=d.level*d.level*100
- expBar.style.width=Math.min(100,(d.exp/(d.level*d.level*100))*100)+"%"
- goalSelect.innerHTML=""
- d.goals.forEach(g=>{
-  let o=document.createElement("option");o.textContent=g;goalSelect.appendChild(o)
- })
- updateWeek()
-}
-
-function updateWeek(){
- let d=data()
  let used=0
- Object.values(d.logs).forEach(v=>used+=v)
- remainWeek.textContent=Math.max(0,d.weekGoal-used)
+ Object.entries(data.logs).forEach(([d,g])=>{
+  if(d>=data.weekStart)
+   Object.values(g).forEach(v=>used+=v)
+ })
+ const r=data.weekGoal?used/data.weekGoal:0
+ weekBar.style.width=Math.min(r*100,100)+'%'
+ const rem=Math.max(0,data.weekGoal-used)
+ weekText.textContent=data.weekGoal
+  ? rem>0?`残り ${Math.floor(rem/60)}時間${rem%60}分`:'🎉達成'
+  :'未設定'
+ save()
+}
+render()
+
+/* ===== TIMER (REAL TIME) ===== */
+let startAt=0,elapsed=0,iv=null,running=false
+
+function fmt(s){
+ return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')
 }
 
-/* TIMER */
 function startTimer(){
- if(timer)return
+ if(running)return
+ running=true
+ elapsed=0
  startAt=Date.now()
- timerView.classList.remove("hidden")
- timer=setInterval(()=>{
-  let s=Math.floor((Date.now()-startAt)/1000)
-  timerText.textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0")
- },1000)
+ fs.classList.remove('hidden')
+ saveBtn.classList.add('hidden')
+ iv=setInterval(()=>{
+  elapsed=Math.floor((Date.now()-startAt)/1000)
+  fsTime.textContent=fmt(elapsed)
+ },500)
 }
 
 function stopTimer(){
- if(!timer)return
- clearInterval(timer); timer=null
- timerView.classList.add("hidden")
- let min=Math.floor((Date.now()-startAt)/60000)
- saveLog(min)
+ if(!running)return
+ clearInterval(iv)
+ running=false
+ saveBtn.classList.remove('hidden')
 }
 
-function saveManual(){
- let min=prompt("何分やりましたか？")
- if(!min)return
- saveLog(parseInt(min))
+function saveTimer(){
+ const min=Math.floor(elapsed/60)
+ if(min>0){
+  const d=today()
+  data.logs[d]=data.logs[d]||{}
+  data.logs[d]['タイマー']=(data.logs[d]['タイマー']||0)+min
+
+  const y=new Date();y.setDate(y.getDate()-1)
+  data.streak=data.logs[y.toISOString().slice(0,10)]?data.streak+1:1
+  data.maxStreak=Math.max(data.maxStreak,data.streak)
+
+  gainExp(min)
+ }
+ fs.classList.add('hidden')
+ elapsed=0
+ fsTime.textContent='0:00'
+ render()
 }
 
-function saveLog(min){
- let d=data(); let day=new Date().toISOString().slice(0,10)
- d.logs[day]=(d.logs[day]||0)+min
- let bonus=1+d.streak/10
- d.exp+=Math.floor(min*bonus)
- if(d.exp>=d.level*d.level*100){d.exp=0;d.level++}
- save(d); goMain()
+/* ===== GRAPH ===== */
+const colors=['#38bdf8','#22c55e','#facc15','#f472b6','#a78bfa']
+const colorMap={}
+const getColor=k=>colorMap[k]||(colorMap[k]=colors[Object.keys(colorMap).length%colors.length])
+
+function openGraph(){
+ main.classList.add('hidden')
+ graph.classList.remove('hidden')
+ drawGraph()
+}
+function closeGraph(){
+ graph.classList.add('hidden')
+ main.classList.remove('hidden')
 }
 
-/* PROFILE */
-function showProfile(){
- main.classList.add("hidden");profile.classList.remove("hidden")
- let d=data()
- pLevel.textContent=d.level
- pStreak.textContent=d.best
- pClear.textContent=d.clear
-}
-
-function showLogs(){
- main.classList.add("hidden");logs.classList.remove("hidden")
- let d=data(); logList.innerHTML=""
- Object.entries(d.logs).reverse().forEach(([k,v])=>{
-  let div=document.createElement("div")
-  div.className="box"; div.textContent=`${k} : ${v}分`
-  logList.appendChild(div)
+function drawGraph(){
+ const ctx=chart.getContext('2d')
+ ctx.clearRect(0,0,360,240)
+ legend.innerHTML=''
+ const days=[]
+ for(let i=6;i>=0;i--){
+  const d=new Date();d.setDate(d.getDate()-i)
+  days.push(d.toISOString().slice(0,10))
+ }
+ const goals=new Set()
+ days.forEach(d=>{
+  if(data.logs[d])
+   Object.keys(data.logs[d]).forEach(g=>goals.add(g))
+ })
+ goals.forEach(g=>{
+  legend.innerHTML+=`<span><i style="background:${getColor(g)}"></i>${g}</span>`
+ })
+ days.forEach((d,i)=>{
+  let y=220
+  if(data.logs[d]){
+   Object.entries(data.logs[d]).forEach(([g,v])=>{
+    const h=v/5
+    ctx.fillStyle=getColor(g)
+    ctx.fillRect(30+i*45,y-h,30,h)
+    y-=h
+   })
+  }
+  ctx.fillStyle='#94a3b8'
+  ctx.fillText(d.slice(5),30+i*45,235)
  })
 }
 
-function backMain(){
- profile.classList.add("hidden");logs.classList.add("hidden")
- main.classList.remove("hidden")
+/* ===== PROFILE ===== */
+function openProfile(){
+ main.classList.add('hidden')
+ profile.classList.remove('hidden')
+ let total=0
+ Object.values(data.logs).forEach(g=>{
+  Object.values(g).forEach(v=>total+=v)
+ })
+ pLv.textContent=data.lv
+ pTime.textContent=`${Math.floor(total/60)}時間${total%60}分`
+ pStreak.textContent=data.maxStreak
+}
+function closeProfile(){
+ profile.classList.add('hidden')
+ main.classList.remove('hidden')
 }
 
+/* ===== WEEK SET ===== */
+function setWeek(){
+ data.weekGoal=Number(wh.value)*60+Number(wm.value)
+ render()
+}
 </script>
 </body>
 </html>
