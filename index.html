@@ -2,47 +2,72 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Self Growth App</title>
+
 <style>
-body{margin:0;font-family:system-ui;background:#020617;color:#fff}
-.card{max-width:480px;margin:auto;padding:16px}
-h1{text-align:center}
-button,input{width:100%;padding:14px;margin-top:10px;border-radius:16px;border:none}
+body{
+ margin:0;
+ font-family:system-ui;
+ background:#020617;
+ color:#fff;
+ text-align:center;
+}
+
+.screen{
+ display:none;
+ min-height:100vh;
+ padding:20px;
+ box-sizing:border-box;
+}
+
+.screen.active{display:block}
+
+button,input{
+ width:100%;
+ padding:16px;
+ margin-top:12px;
+ border-radius:18px;
+ border:none;
+ font-size:1rem;
+}
+
 button{background:#38bdf8;color:#000;font-weight:bold}
 button.sub{background:#475569;color:#fff}
-button:disabled{opacity:.4}
-.panel{background:#020617;border-radius:20px;padding:14px;margin-top:14px}
-.hidden{display:none}
 
-/* ===== TIMER ===== */
-.fullscreen{
- position:fixed;inset:0;
- background:#020617;
- display:flex;flex-direction:column;
- justify-content:center;align-items:center;
- z-index:9999
-}
 .timer{
- font-size:4rem;font-weight:bold;
- margin-bottom:20px
+ font-size:4.5rem;
+ margin:40px 0;
+ font-weight:bold;
 }
-.small{opacity:.8}
 
-/* ===== BAR ===== */
-.bar{height:16px;background:#334155;border-radius:8px;overflow:hidden}
-.bar>div{height:100%;background:#22c55e}
+.panel{
+ background:#020617;
+ border-radius:20px;
+ padding:16px;
+ margin-top:16px;
+ border:1px solid #1e293b;
+}
 
-/* ===== GRAPH ===== */
-canvas{background:#020617;border-radius:16px;margin-top:10px}
-.legend{font-size:.85rem;margin-top:8px}
-.legend span{margin-right:10px}
-.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
+.bar{
+ height:16px;
+ background:#334155;
+ border-radius:8px;
+ overflow:hidden;
+}
+.bar div{
+ height:100%;
+ background:#22c55e;
+ width:0%;
+}
+.small{opacity:.8;margin-top:6px}
 </style>
 </head>
+
 <body>
 
-<div class="card" id="main">
+<!-- ================= HOME ================= -->
+<div id="home" class="screen active">
 <h1>Self Growth</h1>
 
 <div class="panel">
@@ -60,206 +85,126 @@ Lv <span id="lv">1</span>
 <div class="small" id="weekText"></div>
 </div>
 
-<div class="panel">
-<button onclick="startTimer()">▶ START</button>
+<button onclick="startTimer()">▶ タイマー開始</button>
 </div>
 
-<button class="sub" onclick="openGraph()">📊 グラフ</button>
-<button class="sub" onclick="openProfile()">👤 プロフィール</button>
-</div>
-
-<!-- ===== FULLSCREEN TIMER ===== -->
-<div id="fs" class="fullscreen hidden">
-<div class="timer" id="fsTime">0:00</div>
+<!-- ================= TIMER ================= -->
+<div id="timer" class="screen">
+<h2>集中中</h2>
+<div class="timer" id="timeText">0:00</div>
 <button onclick="stopTimer()">STOP</button>
-<button class="sub hidden" id="saveBtn" onclick="saveTimer()">SAVE</button>
 </div>
 
-<!-- ===== GRAPH ===== -->
-<div id="graph" class="hidden card">
-<h1>7日グラフ</h1>
-<canvas id="chart" width="360" height="240"></canvas>
-<div id="legend" class="legend"></div>
-<button onclick="closeGraph()">戻る</button>
-</div>
-
-<!-- ===== PROFILE ===== -->
-<div id="profile" class="hidden card">
-<h1>プロフィール</h1>
-<div class="panel">
-<div>Lv: <span id="pLv"></span></div>
-<div>累計時間: <span id="pTime"></span></div>
-<div>最高連続日数: <span id="pStreak"></span></div>
-</div>
-<button onclick="closeProfile()">戻る</button>
+<!-- ================= SAVE ================= -->
+<div id="save" class="screen">
+<h2>記録しますか？</h2>
+<div class="timer" id="saveTime">0:00</div>
+<button onclick="saveRecord()">保存する</button>
+<button class="sub" onclick="goHome()">キャンセル</button>
 </div>
 
 <script>
-/* ===== DATA ===== */
-let data=JSON.parse(localStorage.getItem('sg'))||{
- lv:1,exp:0,logs:{},streak:0,maxStreak:0,
- weekGoal:0,weekStart:''
-}
-const save=()=>localStorage.setItem('sg',JSON.stringify(data))
-const today=()=>new Date().toISOString().slice(0,10)
+/* ========= DATA ========= */
+let data = JSON.parse(localStorage.getItem('sg2')) || {
+ lv:1, exp:0, logs:{},
+ weekGoal:0, weekStart:''
+};
 
-/* ===== EXP ===== */
+const saveData=()=>localStorage.setItem('sg2',JSON.stringify(data));
+
+/* ========= UTILS ========= */
+const today=()=>new Date().toISOString().slice(0,10);
+function weekStart(){
+ const d=new Date();
+ const day=d.getDay()||7;
+ d.setDate(d.getDate()-day+1);
+ return d.toISOString().slice(0,10);
+}
+
+/* ========= SCREEN ========= */
+function show(id){
+ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
+}
+
+/* ========= EXP ========= */
 function gainExp(min){
- let gain=Math.floor(min*(1+data.streak/10))
- data.exp+=gain
+ data.exp+=Math.floor(min*1.2);
  while(data.exp>=100*data.lv*data.lv){
-  data.exp-=100*data.lv*data.lv
-  data.lv++
+  data.exp-=100*data.lv*data.lv;
+  data.lv++;
  }
 }
 
-/* ===== WEEK ===== */
-function weekStart(){
- const d=new Date();const day=d.getDay()||7
- d.setDate(d.getDate()-day+1)
- return d.toISOString().slice(0,10)
-}
-if(data.weekStart!==weekStart()){
- data.weekStart=weekStart()
-}
-save()
-
-/* ===== UI ===== */
+/* ========= RENDER ========= */
 function render(){
- lv.textContent=data.lv
- const need=100*data.lv*data.lv
- expBar.style.width=Math.min(data.exp/need*100,100)+'%'
- needExp.textContent=need-data.exp
+ lv.textContent=data.lv;
+ const need=100*data.lv*data.lv;
+ expBar.style.width=Math.min(data.exp/need*100,100)+'%';
+ needExp.textContent=need-data.exp;
 
- let used=0
+ let used=0;
  Object.entries(data.logs).forEach(([d,g])=>{
   if(d>=data.weekStart)
-   Object.values(g).forEach(v=>used+=v)
- })
- const r=data.weekGoal?used/data.weekGoal:0
- weekBar.style.width=Math.min(r*100,100)+'%'
- const rem=Math.max(0,data.weekGoal-used)
+   Object.values(g).forEach(v=>used+=v);
+ });
+ weekBar.style.width=data.weekGoal?Math.min(used/data.weekGoal*100,100)+'%':'0%';
+ const rem=data.weekGoal-used;
  weekText.textContent=data.weekGoal
   ? rem>0?`残り ${Math.floor(rem/60)}時間${rem%60}分`:'🎉達成'
-  :'未設定'
- save()
-}
-render()
+  :'未設定';
 
-/* ===== TIMER (REAL TIME) ===== */
-let startAt=0,elapsed=0,iv=null,running=false
-
-function fmt(s){
- return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')
+ saveData();
 }
+if(data.weekStart!==weekStart()) data.weekStart=weekStart();
+render();
+
+/* ========= TIMER ========= */
+let startTime=0, elapsed=0, timerId=null;
 
 function startTimer(){
- if(running)return
- running=true
- elapsed=0
- startAt=Date.now()
- fs.classList.remove('hidden')
- saveBtn.classList.add('hidden')
- iv=setInterval(()=>{
-  elapsed=Math.floor((Date.now()-startAt)/1000)
-  fsTime.textContent=fmt(elapsed)
- },500)
+ startTime=Date.now();
+ elapsed=0;
+ timeText.textContent='0:00';
+ show('timer');
+ timerId=setInterval(()=>{
+  elapsed=Math.floor((Date.now()-startTime)/1000);
+  timeText.textContent=format(elapsed);
+ },500);
 }
 
 function stopTimer(){
- if(!running)return
- clearInterval(iv)
- running=false
- saveBtn.classList.remove('hidden')
+ clearInterval(timerId);
+ saveTime.textContent=format(elapsed);
+ show('save');
 }
 
-function saveTimer(){
- const min=Math.floor(elapsed/60)
+function saveRecord(){
+ const min=Math.floor(elapsed/60);
  if(min>0){
-  const d=today()
-  data.logs[d]=data.logs[d]||{}
-  data.logs[d]['タイマー']=(data.logs[d]['タイマー']||0)+min
-
-  const y=new Date();y.setDate(y.getDate()-1)
-  data.streak=data.logs[y.toISOString().slice(0,10)]?data.streak+1:1
-  data.maxStreak=Math.max(data.maxStreak,data.streak)
-
-  gainExp(min)
+  const d=today();
+  data.logs[d]=data.logs[d]||{};
+  data.logs[d]['タイマー']=(data.logs[d]['タイマー']||0)+min;
+  gainExp(min);
  }
- fs.classList.add('hidden')
- elapsed=0
- fsTime.textContent='0:00'
- render()
+ elapsed=0;
+ render();
+ goHome();
 }
 
-/* ===== GRAPH ===== */
-const colors=['#38bdf8','#22c55e','#facc15','#f472b6','#a78bfa']
-const colorMap={}
-const getColor=k=>colorMap[k]||(colorMap[k]=colors[Object.keys(colorMap).length%colors.length])
-
-function openGraph(){
- main.classList.add('hidden')
- graph.classList.remove('hidden')
- drawGraph()
-}
-function closeGraph(){
- graph.classList.add('hidden')
- main.classList.remove('hidden')
+function goHome(){
+ clearInterval(timerId);
+ show('home');
 }
 
-function drawGraph(){
- const ctx=chart.getContext('2d')
- ctx.clearRect(0,0,360,240)
- legend.innerHTML=''
- const days=[]
- for(let i=6;i>=0;i--){
-  const d=new Date();d.setDate(d.getDate()-i)
-  days.push(d.toISOString().slice(0,10))
- }
- const goals=new Set()
- days.forEach(d=>{
-  if(data.logs[d])
-   Object.keys(data.logs[d]).forEach(g=>goals.add(g))
- })
- goals.forEach(g=>{
-  legend.innerHTML+=`<span><i style="background:${getColor(g)}"></i>${g}</span>`
- })
- days.forEach((d,i)=>{
-  let y=220
-  if(data.logs[d]){
-   Object.entries(data.logs[d]).forEach(([g,v])=>{
-    const h=v/5
-    ctx.fillStyle=getColor(g)
-    ctx.fillRect(30+i*45,y-h,30,h)
-    y-=h
-   })
-  }
-  ctx.fillStyle='#94a3b8'
-  ctx.fillText(d.slice(5),30+i*45,235)
- })
-}
-
-/* ===== PROFILE ===== */
-function openProfile(){
- main.classList.add('hidden')
- profile.classList.remove('hidden')
- let total=0
- Object.values(data.logs).forEach(g=>{
-  Object.values(g).forEach(v=>total+=v)
- })
- pLv.textContent=data.lv
- pTime.textContent=`${Math.floor(total/60)}時間${total%60}分`
- pStreak.textContent=data.maxStreak
-}
-function closeProfile(){
- profile.classList.add('hidden')
- main.classList.remove('hidden')
-}
-
-/* ===== WEEK SET ===== */
+/* ========= WEEK ========= */
 function setWeek(){
- data.weekGoal=Number(wh.value)*60+Number(wm.value)
- render()
+ data.weekGoal=Number(wh.value)*60+Number(wm.value);
+ render();
+}
+
+function format(s){
+ return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
 }
 </script>
 </body>
