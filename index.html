@@ -9,110 +9,100 @@
 body{margin:0;font-family:system-ui;background:#f4f6fb}
 .screen{display:none;max-width:480px;margin:auto;padding:16px}
 .active{display:block}
+h1{text-align:center}
 button,input,select{width:100%;padding:12px;margin-top:10px;font-size:16px}
-.card{background:#fff;padding:12px;border-radius:10px;margin-top:10px}
+.card{background:#fff;padding:12px;border-radius:12px;margin-top:12px}
 .bar{height:14px;background:#ddd;border-radius:8px;overflow:hidden}
 .bar-inner{height:100%;background:#4caf50;width:0%}
-.small{font-size:14px;color:#555}
-
-#timerScreen{
-  position:fixed;inset:0;
-  background:#000;color:#0f0;
+#timerOverlay{
+  position:fixed;inset:0;background:#000;color:#0f0;
   display:none;flex-direction:column;
   justify-content:center;align-items:center;
   z-index:9999
 }
-#timerScreen.active{display:flex}
-#timerTime{font-size:64px}
-
-.legend{display:flex;flex-wrap:wrap;margin-top:10px}
-.legend span{display:flex;align-items:center;margin-right:10px;font-size:12px}
-.legend i{width:12px;height:12px;display:inline-block;margin-right:4px;border-radius:3px}
+#timerOverlay.active{display:flex}
+#timerText{font-size:64px}
+canvas{background:#fff;border-radius:12px}
+.small{font-size:13px;color:#555}
 </style>
 </head>
-
 <body>
 
-<!-- ホーム -->
+<!-- HOME -->
 <div id="home" class="screen active">
-  <h1>育成ホーム</h1>
+<h1>育成ホーム</h1>
 
-  <div class="card">
-    Lv <span id="level"></span>
-    <div class="bar"><div class="bar-inner" id="expBar"></div></div>
-    <div class="small">次まであと <span id="nextExp"></span> EXP</div>
-  </div>
-
-  <button onclick="startTimer()">▶ タイマー開始</button>
-  <button onclick="showScreen('manual')">📝 手動記録</button>
-  <button onclick="showScreen('graph')">📈 グラフ</button>
+<div class="card">
+Lv <span id="lv"></span>
+<div class="bar"><div class="bar-inner" id="expBar"></div></div>
+<div class="small">次まで <span id="nextExp"></span> EXP</div>
 </div>
 
-<!-- タイマー -->
-<div id="timerScreen">
-  <div id="timerTime">0:00</div>
-  <button onclick="stopTimer()">STOP</button>
+<button onclick="startTimer()">▶ タイマー開始</button>
+<button onclick="show('manual')">✍ 手動記録</button>
+<button onclick="show('graph')">📈 グラフ</button>
 </div>
 
-<!-- 手動記録 -->
+<!-- TIMER -->
+<div id="timerOverlay">
+<div id="timerText">0:00</div>
+<button onclick="stopTimer()">STOP</button>
+</div>
+
+<!-- MANUAL -->
 <div id="manual" class="screen">
-  <h1>手動記録</h1>
-  <input id="goalInput" placeholder="目標（例：英語・数学）">
-  <input id="manualHour" type="number" placeholder="時間">
-  <input id="manualMin" type="number" placeholder="分">
-  <button onclick="saveManual()">保存</button>
-  <button onclick="showScreen('home')">戻る</button>
+<h1>手動記録</h1>
+<input id="goalInput" placeholder="目標（例：英語）">
+<input id="h" type="number" placeholder="時間">
+<input id="m" type="number" placeholder="分">
+<button onclick="saveManual()">保存</button>
+<button onclick="show('home')">戻る</button>
 </div>
 
-<!-- グラフ -->
+<!-- GRAPH -->
 <div id="graph" class="screen">
-  <h1>学習グラフ</h1>
-
-  <select id="graphMode" onchange="drawGraph()">
-    <option value="day">日別（7日）</option>
-    <option value="month">月別（6か月）</option>
-  </select>
-
-  <canvas id="chart" width="340" height="220"></canvas>
-  <div class="legend" id="legend"></div>
-  <button onclick="showScreen('home')">戻る</button>
+<h1>7日グラフ</h1>
+<canvas id="chart" width="360" height="240"></canvas>
+<button onclick="show('home')">戻る</button>
 </div>
 
 <script>
-/* ===== データ ===== */
-const data = JSON.parse(localStorage.getItem('growth')) || {
-  exp:0, level:1,
-  logs:{},   // logs[day][goal] = minutes
-  maxStreak:0
+/* ===== DATA ===== */
+const data = JSON.parse(localStorage.getItem('sg')) || {
+  level:1,exp:0,logs:{}
 };
-function save(){localStorage.setItem('growth',JSON.stringify(data))}
+const colors = {};
+const colorList=['#ef4444','#3b82f6','#22c55e','#eab308','#a855f7','#14b8a6'];
+function save(){localStorage.setItem('sg',JSON.stringify(data))}
+function today(){return new Date().toISOString().slice(0,10)}
 
-/* ===== 画面 ===== */
-function showScreen(id){
+/* ===== SCREEN ===== */
+function show(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  if(id==='home') renderHome();
+  if(id==='home') render();
   if(id==='graph') drawGraph();
+  document.getElementById(id).classList.add('active');
 }
 
-/* ===== レベル ===== */
-function needExp(lv){return 100*lv*lv}
-function updateLevel(){
-  while(data.exp>=needExp(data.level)){
-    data.exp-=needExp(data.level);
+/* ===== LEVEL ===== */
+function needExp(){return 100*data.level*data.level}
+function addExp(min){
+  data.exp+=min;
+  while(data.exp>=needExp()){
+    data.exp-=needExp();
     data.level++;
   }
 }
 
-/* ===== タイマー ===== */
+/* ===== TIMER ===== */
 let sec=0,timer=null,running=false;
 function startTimer(){
   if(running)return;
   running=true;sec=0;
-  timerScreen.classList.add('active');
+  timerOverlay.classList.add('active');
   timer=setInterval(()=>{
     sec++;
-    timerTime.textContent =
+    timerText.textContent=
       Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');
   },1000);
 }
@@ -120,128 +110,74 @@ function stopTimer(){
   if(!running)return;
   clearInterval(timer);
   running=false;
-  timerScreen.classList.remove('active');
-  const goal=prompt('目標名を入力');
-  if(goal) saveMinutes(goal,Math.floor(sec/60));
-  showScreen('home');
+  timerOverlay.classList.remove('active');
+  saveLog('タイマー',Math.floor(sec/60));
+  show('home');
 }
 
-/* ===== 手動保存 ===== */
+/* ===== MANUAL ===== */
 function saveManual(){
   const g=goalInput.value.trim();
-  const h=Number(manualHour.value)||0;
-  const m=Number(manualMin.value)||0;
-  if(!g || (h===0 && m===0)) return alert('入力してください');
-  saveMinutes(g,h*60+m);
-  goalInput.value=manualHour.value=manualMin.value='';
-  showScreen('home');
+  const min=(Number(h.value)||0)*60+(Number(m.value)||0);
+  if(!g||min<=0)return alert('入力不足');
+  saveLog(g,min);
+  goalInput.value=h.value=m.value='';
+  show('home');
 }
 
-/* ===== 共通保存 ===== */
-function saveMinutes(goal,min){
-  const day=new Date().toISOString().slice(0,10);
-  if(!data.logs[day]) data.logs[day]={};
-  data.logs[day][goal]=(data.logs[day][goal]||0)+min;
-
-  const streak=calcStreak();
-  data.maxStreak=Math.max(data.maxStreak,streak);
-  data.exp+=Math.floor(min*(1+streak*0.1));
-  updateLevel();
+/* ===== LOG ===== */
+function saveLog(goal,min){
+  const d=today();
+  data.logs[d]=data.logs[d]||{};
+  data.logs[d][goal]=(data.logs[d][goal]||0)+min;
+  addExp(min);
   save();
 }
 
-/* ===== 連続 ===== */
-function calcStreak(){
-  const days=Object.keys(data.logs).sort().reverse();
-  let streak=0,prev=new Date();
-  for(const d of days){
-    if((prev-new Date(d))/86400000<=1){
-      streak++;prev=new Date(d);
-    } else break;
-  }
-  return streak;
+/* ===== UI ===== */
+function render(){
+  lv.textContent=data.level;
+  nextExp.textContent=needExp()-data.exp;
+  expBar.style.width=(data.exp/needExp()*100)+'%';
 }
 
-/* ===== 表示 ===== */
-function renderHome(){
-  level.textContent=data.level;
-  nextExp.textContent=needExp(data.level)-data.exp;
-  expBar.style.width=(data.exp/needExp(data.level)*100)+'%';
-}
-
-/* ===== グラフ ===== */
-const colors=[
-  '#4caf50','#2196f3','#ff9800','#9c27b0',
-  '#f44336','#009688','#795548'
-];
-
+/* ===== GRAPH ===== */
 function drawGraph(){
   const ctx=chart.getContext('2d');
-  ctx.clearRect(0,0,340,220);
+  ctx.clearRect(0,0,360,240);
 
-  const mode=document.getElementById('graphMode').value;
-
-  // 目標一覧
-  const goals=[...new Set(
-    Object.values(data.logs).flatMap(d=>Object.keys(d))
-  )];
-
-  // 凡例
-  legend.innerHTML='';
-  goals.forEach((g,i)=>{
-    const s=document.createElement('span');
-    s.innerHTML=`<i style="background:${colors[i%colors.length]}"></i>${g}`;
-    legend.appendChild(s);
+  const days=[...Array(7)].map((_,i)=>{
+    const d=new Date();d.setDate(d.getDate()-6+i);
+    return d.toISOString().slice(0,10);
   });
 
-  let labels=[], table={};
+  // collect goals
+  const goals=new Set();
+  days.forEach(d=>{
+    if(data.logs[d]) Object.keys(data.logs[d]).forEach(g=>goals.add(g));
+  });
 
-  if(mode==='day'){
-    labels=[...Array(7)].map((_,i)=>{
-      const d=new Date();d.setDate(d.getDate()-6+i);
-      return d.toISOString().slice(0,10);
-    });
-    labels.forEach(d=>table[d]=data.logs[d]||{});
-  } else {
-    labels=[...Array(6)].map((_,i)=>{
-      const d=new Date();d.setMonth(d.getMonth()-5+i);
-      return d.toISOString().slice(0,7);
-    });
-    labels.forEach(m=>table[m]={});
-    for(const [day,gs] of Object.entries(data.logs)){
-      const m=day.slice(0,7);
-      if(table[m]){
-        for(const g in gs){
-          table[m][g]=(table[m][g]||0)+gs[g];
-        }
+  [...goals].forEach((g,i)=>{
+    if(!colors[g]) colors[g]=colorList[i%colorList.length];
+  });
+
+  const max=60;
+  days.forEach((day,i)=>{
+    let y=200;
+    if(data.logs[day]){
+      for(const [g,v] of Object.entries(data.logs[day])){
+        const h=v/max*160;
+        ctx.fillStyle=colors[g];
+        ctx.fillRect(30+i*45,y-h,30,h);
+        y-=h;
       }
     }
-  }
-
-  // 最大値
-  let max=1;
-  labels.forEach(l=>{
-    let sum=0;
-    goals.forEach(g=>sum+=(table[l][g]||0));
-    max=Math.max(max,sum);
-  });
-
-  // 描画
-  labels.forEach((l,i)=>{
-    let y=190;
-    goals.forEach((g,gi)=>{
-      const v=table[l][g]||0;
-      const h=(v/max)*160;
-      ctx.fillStyle=colors[gi%colors.length];
-      ctx.fillRect(20+i*45,y-h,30,h);
-      y-=h;
-    });
     ctx.fillStyle='#000';
-    ctx.fillText(mode==='day'?l.slice(5):l,15+i*45,205);
+    ctx.fillText(day.slice(5),28+i*45,220);
   });
 }
 
-renderHome();
+render();
 </script>
 </body>
 </html>
