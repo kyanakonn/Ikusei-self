@@ -6,206 +6,242 @@
 <title>Self Growth App</title>
 
 <style>
-body{
- margin:0;
- font-family:system-ui;
- background:#020617;
- color:#fff;
- text-align:center;
-}
+body{margin:0;font-family:system-ui;background:#f4f6fb}
+.screen{display:none;max-width:480px;margin:auto;padding:16px}
+.active{display:block}
+button,input,select{width:100%;padding:12px;margin-top:10px;font-size:16px}
+.card{background:#fff;padding:12px;border-radius:10px;margin-top:10px}
+.bar{height:14px;background:#ddd;border-radius:8px;overflow:hidden}
+.bar-inner{height:100%;background:#4caf50;width:0%}
+.small{font-size:14px;color:#555}
 
-.screen{
- display:none;
- min-height:100vh;
- padding:20px;
- box-sizing:border-box;
+#timerScreen{
+  position:fixed;inset:0;
+  background:#000;color:#0f0;
+  display:none;flex-direction:column;
+  justify-content:center;align-items:center;
+  z-index:9999
 }
+#timerScreen.active{display:flex}
+#timerTime{font-size:64px}
 
-.screen.active{display:block}
-
-button,input{
- width:100%;
- padding:16px;
- margin-top:12px;
- border-radius:18px;
- border:none;
- font-size:1rem;
-}
-
-button{background:#38bdf8;color:#000;font-weight:bold}
-button.sub{background:#475569;color:#fff}
-
-.timer{
- font-size:4.5rem;
- margin:40px 0;
- font-weight:bold;
-}
-
-.panel{
- background:#020617;
- border-radius:20px;
- padding:16px;
- margin-top:16px;
- border:1px solid #1e293b;
-}
-
-.bar{
- height:16px;
- background:#334155;
- border-radius:8px;
- overflow:hidden;
-}
-.bar div{
- height:100%;
- background:#22c55e;
- width:0%;
-}
-.small{opacity:.8;margin-top:6px}
+.legend{display:flex;flex-wrap:wrap;margin-top:10px}
+.legend span{display:flex;align-items:center;margin-right:10px;font-size:12px}
+.legend i{width:12px;height:12px;display:inline-block;margin-right:4px;border-radius:3px}
 </style>
 </head>
 
 <body>
 
-<!-- ================= HOME ================= -->
+<!-- ホーム -->
 <div id="home" class="screen active">
-<h1>Self Growth</h1>
+  <h1>育成ホーム</h1>
 
-<div class="panel">
-Lv <span id="lv">1</span>
-<div class="bar"><div id="expBar"></div></div>
-<div class="small">次まで <span id="needExp"></span> EXP</div>
+  <div class="card">
+    Lv <span id="level"></span>
+    <div class="bar"><div class="bar-inner" id="expBar"></div></div>
+    <div class="small">次まであと <span id="nextExp"></span> EXP</div>
+  </div>
+
+  <button onclick="startTimer()">▶ タイマー開始</button>
+  <button onclick="showScreen('manual')">📝 手動記録</button>
+  <button onclick="showScreen('graph')">📈 グラフ</button>
 </div>
 
-<div class="panel">
-<h3>今週の目標</h3>
-<input id="wh" type="number" placeholder="時間">
-<input id="wm" type="number" placeholder="分">
-<button onclick="setWeek()">設定</button>
-<div class="bar"><div id="weekBar"></div></div>
-<div class="small" id="weekText"></div>
+<!-- タイマー -->
+<div id="timerScreen">
+  <div id="timerTime">0:00</div>
+  <button onclick="stopTimer()">STOP</button>
 </div>
 
-<button onclick="startTimer()">▶ タイマー開始</button>
+<!-- 手動記録 -->
+<div id="manual" class="screen">
+  <h1>手動記録</h1>
+  <input id="goalInput" placeholder="目標（例：英語・数学）">
+  <input id="manualHour" type="number" placeholder="時間">
+  <input id="manualMin" type="number" placeholder="分">
+  <button onclick="saveManual()">保存</button>
+  <button onclick="showScreen('home')">戻る</button>
 </div>
 
-<!-- ================= TIMER ================= -->
-<div id="timer" class="screen">
-<h2>集中中</h2>
-<div class="timer" id="timeText">0:00</div>
-<button onclick="stopTimer()">STOP</button>
-</div>
+<!-- グラフ -->
+<div id="graph" class="screen">
+  <h1>学習グラフ</h1>
 
-<!-- ================= SAVE ================= -->
-<div id="save" class="screen">
-<h2>記録しますか？</h2>
-<div class="timer" id="saveTime">0:00</div>
-<button onclick="saveRecord()">保存する</button>
-<button class="sub" onclick="goHome()">キャンセル</button>
+  <select id="graphMode" onchange="drawGraph()">
+    <option value="day">日別（7日）</option>
+    <option value="month">月別（6か月）</option>
+  </select>
+
+  <canvas id="chart" width="340" height="220"></canvas>
+  <div class="legend" id="legend"></div>
+  <button onclick="showScreen('home')">戻る</button>
 </div>
 
 <script>
-/* ========= DATA ========= */
-let data = JSON.parse(localStorage.getItem('sg2')) || {
- lv:1, exp:0, logs:{},
- weekGoal:0, weekStart:''
+/* ===== データ ===== */
+const data = JSON.parse(localStorage.getItem('growth')) || {
+  exp:0, level:1,
+  logs:{},   // logs[day][goal] = minutes
+  maxStreak:0
 };
+function save(){localStorage.setItem('growth',JSON.stringify(data))}
 
-const saveData=()=>localStorage.setItem('sg2',JSON.stringify(data));
-
-/* ========= UTILS ========= */
-const today=()=>new Date().toISOString().slice(0,10);
-function weekStart(){
- const d=new Date();
- const day=d.getDay()||7;
- d.setDate(d.getDate()-day+1);
- return d.toISOString().slice(0,10);
+/* ===== 画面 ===== */
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(id==='home') renderHome();
+  if(id==='graph') drawGraph();
 }
 
-/* ========= SCREEN ========= */
-function show(id){
- document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
- document.getElementById(id).classList.add('active');
+/* ===== レベル ===== */
+function needExp(lv){return 100*lv*lv}
+function updateLevel(){
+  while(data.exp>=needExp(data.level)){
+    data.exp-=needExp(data.level);
+    data.level++;
+  }
 }
 
-/* ========= EXP ========= */
-function gainExp(min){
- data.exp+=Math.floor(min*1.2);
- while(data.exp>=100*data.lv*data.lv){
-  data.exp-=100*data.lv*data.lv;
-  data.lv++;
- }
-}
-
-/* ========= RENDER ========= */
-function render(){
- lv.textContent=data.lv;
- const need=100*data.lv*data.lv;
- expBar.style.width=Math.min(data.exp/need*100,100)+'%';
- needExp.textContent=need-data.exp;
-
- let used=0;
- Object.entries(data.logs).forEach(([d,g])=>{
-  if(d>=data.weekStart)
-   Object.values(g).forEach(v=>used+=v);
- });
- weekBar.style.width=data.weekGoal?Math.min(used/data.weekGoal*100,100)+'%':'0%';
- const rem=data.weekGoal-used;
- weekText.textContent=data.weekGoal
-  ? rem>0?`残り ${Math.floor(rem/60)}時間${rem%60}分`:'🎉達成'
-  :'未設定';
-
- saveData();
-}
-if(data.weekStart!==weekStart()) data.weekStart=weekStart();
-render();
-
-/* ========= TIMER ========= */
-let startTime=0, elapsed=0, timerId=null;
-
+/* ===== タイマー ===== */
+let sec=0,timer=null,running=false;
 function startTimer(){
- startTime=Date.now();
- elapsed=0;
- timeText.textContent='0:00';
- show('timer');
- timerId=setInterval(()=>{
-  elapsed=Math.floor((Date.now()-startTime)/1000);
-  timeText.textContent=format(elapsed);
- },500);
+  if(running)return;
+  running=true;sec=0;
+  timerScreen.classList.add('active');
+  timer=setInterval(()=>{
+    sec++;
+    timerTime.textContent =
+      Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');
+  },1000);
 }
-
 function stopTimer(){
- clearInterval(timerId);
- saveTime.textContent=format(elapsed);
- show('save');
+  if(!running)return;
+  clearInterval(timer);
+  running=false;
+  timerScreen.classList.remove('active');
+  const goal=prompt('目標名を入力');
+  if(goal) saveMinutes(goal,Math.floor(sec/60));
+  showScreen('home');
 }
 
-function saveRecord(){
- const min=Math.floor(elapsed/60);
- if(min>0){
-  const d=today();
-  data.logs[d]=data.logs[d]||{};
-  data.logs[d]['タイマー']=(data.logs[d]['タイマー']||0)+min;
-  gainExp(min);
- }
- elapsed=0;
- render();
- goHome();
+/* ===== 手動保存 ===== */
+function saveManual(){
+  const g=goalInput.value.trim();
+  const h=Number(manualHour.value)||0;
+  const m=Number(manualMin.value)||0;
+  if(!g || (h===0 && m===0)) return alert('入力してください');
+  saveMinutes(g,h*60+m);
+  goalInput.value=manualHour.value=manualMin.value='';
+  showScreen('home');
 }
 
-function goHome(){
- clearInterval(timerId);
- show('home');
+/* ===== 共通保存 ===== */
+function saveMinutes(goal,min){
+  const day=new Date().toISOString().slice(0,10);
+  if(!data.logs[day]) data.logs[day]={};
+  data.logs[day][goal]=(data.logs[day][goal]||0)+min;
+
+  const streak=calcStreak();
+  data.maxStreak=Math.max(data.maxStreak,streak);
+  data.exp+=Math.floor(min*(1+streak*0.1));
+  updateLevel();
+  save();
 }
 
-/* ========= WEEK ========= */
-function setWeek(){
- data.weekGoal=Number(wh.value)*60+Number(wm.value);
- render();
+/* ===== 連続 ===== */
+function calcStreak(){
+  const days=Object.keys(data.logs).sort().reverse();
+  let streak=0,prev=new Date();
+  for(const d of days){
+    if((prev-new Date(d))/86400000<=1){
+      streak++;prev=new Date(d);
+    } else break;
+  }
+  return streak;
 }
 
-function format(s){
- return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+/* ===== 表示 ===== */
+function renderHome(){
+  level.textContent=data.level;
+  nextExp.textContent=needExp(data.level)-data.exp;
+  expBar.style.width=(data.exp/needExp(data.level)*100)+'%';
 }
+
+/* ===== グラフ ===== */
+const colors=[
+  '#4caf50','#2196f3','#ff9800','#9c27b0',
+  '#f44336','#009688','#795548'
+];
+
+function drawGraph(){
+  const ctx=chart.getContext('2d');
+  ctx.clearRect(0,0,340,220);
+
+  const mode=document.getElementById('graphMode').value;
+
+  // 目標一覧
+  const goals=[...new Set(
+    Object.values(data.logs).flatMap(d=>Object.keys(d))
+  )];
+
+  // 凡例
+  legend.innerHTML='';
+  goals.forEach((g,i)=>{
+    const s=document.createElement('span');
+    s.innerHTML=`<i style="background:${colors[i%colors.length]}"></i>${g}`;
+    legend.appendChild(s);
+  });
+
+  let labels=[], table={};
+
+  if(mode==='day'){
+    labels=[...Array(7)].map((_,i)=>{
+      const d=new Date();d.setDate(d.getDate()-6+i);
+      return d.toISOString().slice(0,10);
+    });
+    labels.forEach(d=>table[d]=data.logs[d]||{});
+  } else {
+    labels=[...Array(6)].map((_,i)=>{
+      const d=new Date();d.setMonth(d.getMonth()-5+i);
+      return d.toISOString().slice(0,7);
+    });
+    labels.forEach(m=>table[m]={});
+    for(const [day,gs] of Object.entries(data.logs)){
+      const m=day.slice(0,7);
+      if(table[m]){
+        for(const g in gs){
+          table[m][g]=(table[m][g]||0)+gs[g];
+        }
+      }
+    }
+  }
+
+  // 最大値
+  let max=1;
+  labels.forEach(l=>{
+    let sum=0;
+    goals.forEach(g=>sum+=(table[l][g]||0));
+    max=Math.max(max,sum);
+  });
+
+  // 描画
+  labels.forEach((l,i)=>{
+    let y=190;
+    goals.forEach((g,gi)=>{
+      const v=table[l][g]||0;
+      const h=(v/max)*160;
+      ctx.fillStyle=colors[gi%colors.length];
+      ctx.fillRect(20+i*45,y-h,30,h);
+      y-=h;
+    });
+    ctx.fillStyle='#000';
+    ctx.fillText(mode==='day'?l.slice(5):l,15+i*45,205);
+  });
+}
+
+renderHome();
 </script>
 </body>
 </html>
